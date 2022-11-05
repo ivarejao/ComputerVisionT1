@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from typing import List
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import sys
@@ -71,11 +72,19 @@ def rotate(ang, axis):
                               [sin(ang), cos(ang)]])
     return R
 
-# def transform_on_own_ref(cam, base, transf : np.ndarray):
-#     return cam.dot(transf.dot(base))
-#
-# def transform_on_world_ref(cam, transf : np.ndarray):
-#     return transf.dot(cam)
+# Transforma a câmera no próprio referencial
+def transf_cam_axis(cam : np.ndarray, transforms : List[np.ndarray], base : np.ndarray):
+    new_cam = base
+    for t in reversed(transforms):
+        new_cam = t.dot(new_cam)
+    new_cam = cam.dot(new_cam)
+    return new_cam
+
+# Transforma a camêra no referencial do mundo
+def transf_world_axis(cam, transforms : List[np.ndarray]):
+    for t in transforms:
+        cam = t.dot(cam)
+    return cam
 
 def create_cube():
     # cube = np.array(list(product(range(-1, 2, 2), repeat=3)))
@@ -113,68 +122,41 @@ def plot_cube(ax, cube):
         ax.add_patch(side)
         art3d.pathpatch_2d_to_3d(side, z=z, zdir=zdir)
 
-if __name__ == "__main__":
-    # Make chanonical base
+def create_base():
     e1 = np.array([[1], [0], [0], [0]])  # X
     e2 = np.array([[0], [1], [0], [0]])  # Y
     e3 = np.array([[0], [0], [1], [0]])  # Z
     e4 = np.array([0, 0, 0, 1]).reshape(-1, 1)
     base = np.hstack((e1, e2, e3, e4))
-    point = np.array([0, 0, 0]).reshape(-1, 1)
+    return base
 
-    # Make cam matrix
-    a45 = np.pi / 4  # 45º
+if __name__ == "__main__":
+    # Make chanonical base
+    base = create_base()
+    origin = np.array([0, 0, 0]).reshape(-1, 1)
+
+    # Bota a câmera na orientação padrão, com o eixo z apontando pra frente
+    # E translada para diferenciar do objeto
     a90 = -np.pi / 2  # 90º
-    R1 = rotate(a45, "y")
-    R2 = rotate(a90, "x")
-    T1 = translate(0, 0, 1)
-    T2 = translate(0, 1, 0)
-    T1_cube = translate(0, 10, 0)
+    R = rotate(a90, "x")
+    T = translate(0, -10, 0)
+    M1 = T.dot(R)
+    # cam = M1.dot(base)
 
-    # Set cam viewing cube
-    M1 = R2
-    cam = M1.dot(base)
+    # Testando
+    T1 = translate(0, 0, -10)
+    R2 = rotate(-a90, "x")
+    R3 = rotate(np.pi/4, "x")
 
+    cam = transf_cam_axis(base, [R, T, T1, R2, R3], base)
+    # cam = transf_world_axis(base, [R, T, T1, R2, R3])
+
+    # Plota a câmera e o objeto
     ax0 = set_plot()
-    ax0.set_ylim([0, 12])
     cb = create_cube()
-    cb = T1_cube.dot(cb)
-
-    # plot_cube(ax0, cb)
+    plot_cube(ax0, cb)
     draw_arrows(cam[:, 3], cam[:, :3], ax0)
-    ax0.plot3D(cb[0, :], cb[1, :], cb[2, :], 'red')
     plt.axis('scaled')
+    # ax0.set_ylim([-12, 2])
     plt.title("Cam 1")
     plt.show()
-
-    input()
-    ax0 = set_plot()
-    cam = cam.dot(translate(2, 0, 0))
-    print(cam)
-    draw_arrows(cam[:, 3], cam[:, :3], ax0)
-    ax0.plot3D(cb[0, :], cb[1, :], cb[2, :], 'red')
-    plt.axis('scaled')
-    plt.title("Cam 2")
-    plt.show()
-
-    input()
-    ax0 = set_plot()
-    cam = cam.dot(rotate(a45, "y"))
-    print(cam)
-    draw_arrows(cam[:, 3], cam[:, :3], ax0)
-    ax0.plot3D(cb[0, :], cb[1, :], cb[2, :], 'red')
-    plt.axis('scaled')
-    plt.title("Cam 3")
-    plt.show()
-
-
-    # ax0 = set_plot()
-    # draw_arrows(cam[:, 3], cam[:, :3], ax0)
-    # plt.show()
-    #
-    # input("Go")
-    #
-    # ax0 = set_plot()
-    # draw_arrows(cam2[:, 3], cam2[:, :3], ax0)
-    # plt.show()
-    #
