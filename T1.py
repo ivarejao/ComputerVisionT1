@@ -13,6 +13,7 @@ from math import pi, cos, sin
 from Objects import Cam, Rotatation, Translation
 from itertools import product
 import mpl_toolkits.mplot3d.art3d as art3d
+import streamlit as st
 
 np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 np.set_printoptions(precision=3, suppress=True)
@@ -130,6 +131,16 @@ def create_base():
     base = np.hstack((e1, e2, e3, e4))
     return base
 
+def plot_cam(cam : np.ndarray) -> plt.Figure:
+    ax0 = set_plot()
+    cb = create_cube()
+    plot_cube(ax0, cb)
+    draw_arrows(cam[:, 3], cam[:, :3], ax0)
+    ax0.text(cam[0, 3] + .15, cam[1, 3] + .15, cam[2, 3] + .15, "Cam")
+    plt.axis('scaled')
+    # ax0.set_ylim([-12, 2])
+    return ax0.get_figure()
+
 if __name__ == "__main__":
     # Make chanonical base
     base = create_base()
@@ -148,15 +159,62 @@ if __name__ == "__main__":
     R2 = rotate(-a90, "x")
     R3 = rotate(np.pi/4, "x")
 
-    cam = transf_cam_axis(base, [R, T, T1, R2, R3], base)
+    transf = [R, T1]
+    cam = transf_cam_axis(base, transf, base)
+    cam2 = transf_world_axis(base, transf)
+    # cam = transf_cam_axis(base, [R, T, T1, R2, R3], base)
     # cam = transf_world_axis(base, [R, T, T1, R2, R3])
 
     # Plota a câmera e o objeto
-    ax0 = set_plot()
-    cb = create_cube()
-    plot_cube(ax0, cb)
-    draw_arrows(cam[:, 3], cam[:, :3], ax0)
-    plt.axis('scaled')
-    # ax0.set_ylim([-12, 2])
-    plt.title("Cam 1")
-    plt.show()
+
+
+    # st.pyplot(ax0.get_figure())
+    # plt.show()
+
+    st.set_page_config(layout="wide", page_icon="📷", page_title="Computer Vision T1")
+    st.title("Computer Vision T1")
+    row1_1, row1_2 = st.columns(2)
+    # Seção onde é inserido as transformações que devem ser feitas
+    with row1_1:
+        row1_1.subheader("Transformando a câmera")
+        form1 = row1_1.form("Transformando")
+        # Parâmetros Translação
+        x = form1.number_input("Coordenada x", step=1)
+        y = form1.number_input("Coordenada y", step=1)
+        z = form1.number_input("Coordenada z", step=1)
+        # Parâmetros Rotação
+        x_theta = form1.number_input("Ângulo x (º)", step=1, format="%d")
+        y_theta = form1.number_input("Ângulo y (º)", step=1, format="%d")
+        z_theta = form1.number_input("Ângulo z (º)", step=1, format="%d")
+        ref = form1.checkbox("Eixo da câmera")
+        submit2 = form1.form_submit_button("Transformar câmera")
+
+    # Onde ocorre a inserção dos parâmetros intrísecos da câmera 
+    with row1_2:
+        row1_2.subheader("Parâm. intrísecos da câmera")
+        form2 = row1_2.form("Parâm. intrísecos da câmera")
+        fy = form2.number_input("fx", step=1)
+        fx = form2.number_input("fy", step=1)
+        alphax = form2.number_input("Horizontal field of view", step=1)
+        alphay = form2.number_input("Vertical field of view", step=1)
+        submit3 = form2.form_submit_button("Renderizar foto")
+
+    row2_1, row2_2 = st.columns(2)
+    # Parte que mostra o gráfico da visão do mundo da cena
+    with row2_1:
+        st.header("Out side vision")
+        # TODO: Fazer as tranformações da câmera com base nos inputs
+        # if ref: # Então é no eixo da câmera
+        #     rots = []
+        #     cam =
+        # else: # É no eixo do mundo
+        #     cam
+        fig = plot_cam(cam)
+        st.write(fig)
+
+    # Seção que mostra o gráfico da visão da câmera da cena
+    with row2_2:
+        st.header("Cam vision")
+        # O gráfico da visão projetada da câmera tem que vir aqui
+        ax1 = set_plot()
+        st.write(ax1.get_figure())
