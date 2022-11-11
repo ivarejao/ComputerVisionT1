@@ -1,3 +1,5 @@
+import math
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from typing import List
@@ -5,15 +7,15 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import sys
 import os
-# from PyQt5 import QtGui
-# from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QSpinBox
-# from PyQt5.QtGui import QPainter
-# from PyQt5.QtCore import *
-from math import pi, cos, sin
-from Objects import Cam, Rotatation, Translation
+from PyQt5 import QtGui
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QSpinBox
+from PyQt5.QtGui import QPainter
+from PyQt5.QtCore import *
+from math import pi, cos, sin, radians
 from itertools import product
 import mpl_toolkits.mplot3d.art3d as art3d
 import streamlit as st
+from Objects import Rotation, Translation, Transformation, Camera
 
 np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 np.set_printoptions(precision=3, suppress=True)
@@ -102,7 +104,7 @@ def projection_matrix(cam, obj, fx, fy, ftheta, ox, oy):
     print(projection)
 
 # Transforma a câmera no próprio referencial
-def transf_cam_axis(cam : np.ndarray, transforms : List[np.ndarray], base : np.ndarray):
+def transf_cam_axis(cam : np.ndarray, transforms : List[Transformation], base : np.ndarray):
     new_cam = base
     for t in reversed(transforms):
         new_cam = t.dot(new_cam)
@@ -110,7 +112,7 @@ def transf_cam_axis(cam : np.ndarray, transforms : List[np.ndarray], base : np.n
     return new_cam
 
 # Transforma a camêra no referencial do mundo
-def transf_world_axis(cam, transforms : List[np.ndarray]):
+def transf_world_axis(cam, transforms : List[Transformation]):
     for t in transforms:
         cam = t.dot(cam)
     return cam
@@ -175,93 +177,86 @@ if __name__ == "__main__":
 
     # Bota a câmera na orientação padrão, com o eixo z apontando pra frente
     # E translada para diferenciar do objeto
-    a90 = -np.pi / 2  # 90º
-    R = rotate(a90, "x")
-    T = translate(0, -10, 0)
-    M1 = T.dot(R)
-    # cam = M1.dot(base)
+    R = Rotation(-math.radians(90), "x", cam_ref=True)
+    T = Translation(-10, "z", cam_ref=True)
 
-    # Testando
-    T1 = translate(0, 0, -10)
-    R2 = rotate(-a90, "x")
-    R3 = rotate(np.pi/4, "x")
-
-    transf = [R, T1]
-    cam = transf_cam_axis(base, transf, base)
-    cb = create_cube()
-    cam2 = transf_world_axis(base, transf)
-    # cam = transf_cam_axis(base, [R, T, T1, R2, R3], base)
-    # cam = transf_world_axis(base, [R, T, T1, R2, R3])
-
-    # Plota a câmera e o objeto
+    if "cam" in st.session_state:
+        dict_cam = st.session_state["cam"]
+        cam = Camera.from_dict(dict_cam)
+    else:
+        cam = Camera()
+        cam.transform(R)
+        cam.transform(T)
 
 
-    # st.pyplot(ax0.get_figure())
-    # plt.show()
 
+    # Começa a setar a interface gráfica
     st.set_page_config(layout="wide", page_icon="📷", page_title="Computer Vision T1")
     st.title("Computer Vision T1")
-    row1_1, row1_2 = st.columns(2)
+
+    row1_1, row1_2 = st.columns((2, 4))
     # Seção onde é inserido as transformações que devem ser feitas
     with row1_1:
         row1_1.subheader("Transformando a câmera")
-        form1 = row1_1.form("Transformando", True)
-        # Parâmetros Translação
-        x = form1.number_input("Coordenada x", step=1)
-        y = form1.number_input("Coordenada y", step=1)
-        z = form1.number_input("Coordenada z", step=1)
-        # Parâmetros Rotação
-        x_theta = form1.number_input("Ângulo x (º)", step=1, format="%d")
-        y_theta = form1.number_input("Ângulo y (º)", step=1, format="%d")
-        z_theta = form1.number_input("Ângulo z (º)", step=1, format="%d")
+        form1 = row1_1.form("Transformando")
+        transform_type = form1.selectbox("Tipo de transformação", ["Rotação", "Translação"])
+        if transform_type == "Translação":
+            # Parâmetros Translação
+            axis = form1.radio("Eixo", ["x", "y", "z"])
+            c = form1.number_input("Valor", step=1)
+        else:
+            # Parâmetros Rotação
+            axis = form1.radio("Eixo", ["x", "y", "z"])
+            theta = form1.number_input("Valor", step=1, format="%d")
         ref = form1.checkbox("Eixo da câmera")
+        print(f"This is ref {ref}")
         submit2 = form1.form_submit_button("Transformar câmera")
-        print('row1_1')
-
         if submit2:
-            print('transform_camera_clicked', x, y, z, x_theta, y_theta, z_theta, ref)
-            print(cam)
-            T = transformation(x, y, z, x_theta, y_theta, z_theta)
-            if(ref):
-                cam = transf_cam_axis(cam, [T], base)
+            if transform_type == "Rotação":
+                trans = Rotation(math.radians(theta), axis, cam_ref=ref)
             else:
-                cam = transf_world_axis(cam, [T])
+                trans = Translation(c, axis, cam_ref=ref)
+            # Aplica a transformação na câmera
+            cam.transform(trans)
 
-            print(cam)
-
-
+        # Reseta a câmera
+        if st.button("Resetar câmera", type="primary"):
+            del st.session_state["cam"]
+            st.experimental_rerun()
 
     # Onde ocorre a inserção dos parâmetros intrísecos da câmera 
     with row1_2:
-        row1_2.subheader("Parâm. intrísecos da câmera")
-        form2 = row1_2.form("Parâm. intrísecos da câmera")
+        st.header("Out side vision")
+        fig = plot_cam(cam.cam)
+        fig.set_dpi(300)
+        st.write(fig)
+
+    row2_1, row2_2 = st.columns((1, 4))
+    # Parte que mostra o gráfico da visão do mundo da cena
+    with row2_1:
+        # st.header("Out side vision")
+        # fig = plot_cam(cam)
+        # st.write(fig)
+        row2_1.subheader("Parâm. intrísecos da câmera")
+        form2 = row2_1.form("Parâm. intrísecos da câmera")
         fy = form2.number_input("fx", step=1)
         fx = form2.number_input("fy", step=1)
         alphax = form2.number_input("Horizontal field of view", step=1)
         alphay = form2.number_input("Vertical field of view", step=1)
         submit3 = form2.form_submit_button("Renderizar foto")
 
-        if submit3:
-            print('renderizar')
-            projection_matrix(cam, cb, fx, fy, 0, 1, 1)
-
-
-    row2_1, row2_2 = st.columns(2)
-    # Parte que mostra o gráfico da visão do mundo da cena
-    with row2_1:
-        st.header("Out side vision")
-        # TODO: Fazer as tranformações da câmera com base nos inputs
-        # if ref: # Então é no eixo da câmera
-        #     rots = []
-        #     cam =
-        # else: # É no eixo do mundo
-        #     cam
-        fig = plot_cam(cam, cb)
-        st.write(fig)
-
     # Seção que mostra o gráfico da visão da câmera da cena
     with row2_2:
         st.header("Cam vision")
         # O gráfico da visão projetada da câmera tem que vir aqui
-        fig, ax1 = set_picture()
-        st.write(ax1.get_figure())
+        ax1 = set_plot()
+        fig = ax1.get_figure()
+        fig.set_dpi(300)
+        st.write(fig)
+
+    st.session_state["cam"] = cam.to_dict()
+
+    with st.sidebar:
+        st.subheader("Transformações aplicadas")
+        for i, trf in enumerate(cam.all_transforms, 1):
+            st.code(f"{i}. " + str(trf))
