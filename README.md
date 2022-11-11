@@ -11,7 +11,7 @@ ser alterado os parâmetros intrísecos dela.
 
 **Dupla:** 
 - Igor Mattos dos Santos Varejão
-- Otávio
+- Otavio Ferreira Cozer
 
 ### Preparação:
 #### Automático
@@ -48,5 +48,5 @@ basta executar o comando abaixo em seu terminal, estando
 no diretório da atividade, que irá abrir uma página em 
 seu navegador da internet com o trabalho.
 ```bash
-streamlit run T1.py
+streamlit run src/T1.py
 ```
