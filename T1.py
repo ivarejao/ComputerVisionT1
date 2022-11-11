@@ -5,10 +5,10 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import sys
 import os
-from PyQt5 import QtGui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QSpinBox
-from PyQt5.QtGui import QPainter
-from PyQt5.QtCore import *
+# from PyQt5 import QtGui
+# from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QLineEdit, QSpinBox
+# from PyQt5.QtGui import QPainter
+# from PyQt5.QtCore import *
 from math import pi, cos, sin
 from Objects import Cam, Rotatation, Translation
 from itertools import product
@@ -33,6 +33,11 @@ def set_plot(ax=None, figure=None, lim=[-2, 2]):
     ax.set_zlim(lim)
     ax.set_zlabel("z axis")
     return ax
+
+def set_picture():
+    fig, ax = plt.subplots(720, 480)
+    # fig, ax = plt.subplots()
+    return fig, ax
 
 
 # adding quivers to the plot
@@ -73,6 +78,29 @@ def rotate(ang, axis):
                               [sin(ang), cos(ang)]])
     return R
 
+def transformation(x, y, z, x_theta, y_theta, z_theta):
+    Rx = rotate(x_theta, "x")
+    Ry = rotate(y_theta, "y")
+    Rz = rotate(z_theta, "z")
+    R = np.dot(Rz, np.dot(Ry, Rx))
+    T = translate(x, y, z)
+    return np.dot(T, R)
+
+def projection_matrix(cam, obj, fx, fy, ftheta, ox, oy):
+    g = cam
+    p0 = np.eye(3,4)
+    k = np.array([
+        [fx, ftheta, ox],
+        [0, fy, oy],
+        [0, 0, 1]
+    ])
+    projection = np.dot(k, np.dot(p0, np.dot(g, obj)))
+    print('g', g)
+    print('p0', p0)
+    print('k', k)
+    print(obj)
+    print(projection)
+
 # Transforma a câmera no próprio referencial
 def transf_cam_axis(cam : np.ndarray, transforms : List[np.ndarray], base : np.ndarray):
     new_cam = base
@@ -87,7 +115,7 @@ def transf_world_axis(cam, transforms : List[np.ndarray]):
         cam = t.dot(cam)
     return cam
 
-def create_cube():
+def create_cube() -> np.array:
     # cube = np.array(list(product(range(-1, 2, 2), repeat=3)))
     cube = np.array([[0, 0, 0],
                      [1, 0, 0],
@@ -131,9 +159,8 @@ def create_base():
     base = np.hstack((e1, e2, e3, e4))
     return base
 
-def plot_cam(cam : np.ndarray) -> plt.Figure:
+def plot_cam(cam : np.ndarray, cb: np.array) -> plt.Figure:
     ax0 = set_plot()
-    cb = create_cube()
     plot_cube(ax0, cb)
     draw_arrows(cam[:, 3], cam[:, :3], ax0)
     ax0.text(cam[0, 3] + .15, cam[1, 3] + .15, cam[2, 3] + .15, "Cam")
@@ -161,6 +188,7 @@ if __name__ == "__main__":
 
     transf = [R, T1]
     cam = transf_cam_axis(base, transf, base)
+    cb = create_cube()
     cam2 = transf_world_axis(base, transf)
     # cam = transf_cam_axis(base, [R, T, T1, R2, R3], base)
     # cam = transf_world_axis(base, [R, T, T1, R2, R3])
@@ -177,7 +205,7 @@ if __name__ == "__main__":
     # Seção onde é inserido as transformações que devem ser feitas
     with row1_1:
         row1_1.subheader("Transformando a câmera")
-        form1 = row1_1.form("Transformando")
+        form1 = row1_1.form("Transformando", True)
         # Parâmetros Translação
         x = form1.number_input("Coordenada x", step=1)
         y = form1.number_input("Coordenada y", step=1)
@@ -188,6 +216,20 @@ if __name__ == "__main__":
         z_theta = form1.number_input("Ângulo z (º)", step=1, format="%d")
         ref = form1.checkbox("Eixo da câmera")
         submit2 = form1.form_submit_button("Transformar câmera")
+        print('row1_1')
+
+        if submit2:
+            print('transform_camera_clicked', x, y, z, x_theta, y_theta, z_theta, ref)
+            print(cam)
+            T = transformation(x, y, z, x_theta, y_theta, z_theta)
+            if(ref):
+                cam = transf_cam_axis(cam, [T], base)
+            else:
+                cam = transf_world_axis(cam, [T])
+
+            print(cam)
+
+
 
     # Onde ocorre a inserção dos parâmetros intrísecos da câmera 
     with row1_2:
@@ -199,6 +241,11 @@ if __name__ == "__main__":
         alphay = form2.number_input("Vertical field of view", step=1)
         submit3 = form2.form_submit_button("Renderizar foto")
 
+        if submit3:
+            print('renderizar')
+            projection_matrix(cam, cb, fx, fy, 0, 1, 1)
+
+
     row2_1, row2_2 = st.columns(2)
     # Parte que mostra o gráfico da visão do mundo da cena
     with row2_1:
@@ -209,12 +256,12 @@ if __name__ == "__main__":
         #     cam =
         # else: # É no eixo do mundo
         #     cam
-        fig = plot_cam(cam)
+        fig = plot_cam(cam, cb)
         st.write(fig)
 
     # Seção que mostra o gráfico da visão da câmera da cena
     with row2_2:
         st.header("Cam vision")
         # O gráfico da visão projetada da câmera tem que vir aqui
-        ax1 = set_plot()
+        fig, ax1 = set_picture()
         st.write(ax1.get_figure())
