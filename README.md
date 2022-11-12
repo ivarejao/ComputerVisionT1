@@ -40,7 +40,7 @@ source activate t1_env/bin/activate
 ```
 3. Instale as dependências:
 ```bash
-pip -r requirements.txt
+pip install -r requirements.txt
 ```
 ### Execução
 Caso a preparação do ambiente tenha ocorrido com sucesso,
