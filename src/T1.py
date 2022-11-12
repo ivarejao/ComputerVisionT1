@@ -314,14 +314,13 @@ if __name__ == "__main__":
 
         # Seção que mostra o gráfico da visão da câmera da cena
         with row2_2:
-
-        image = image_projection(cam, cb, f, sx, sy, ox, oy)
+            image = image_projection(cam, cb, f, sx, sy, ox, oy)
 
             # O gráfico da visão projetada da câmera tem que vir aqui
             projection_fig, projection_ax = set_picture()
             projection_ax.scatter(image[0,:],image[1,:], color ='c', s = 0.5)
-        # projection_ax.plot(image[0, :], image[1, :])
-        projection_ax.grid()
+            # projection_ax.plot(image[0, :], image[1, :])
+            projection_ax.grid()
             # projection_fig.set_dpi(300)
             st.write(projection_fig)
 
