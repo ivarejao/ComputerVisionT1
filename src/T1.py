@@ -256,42 +256,44 @@ if __name__ == "__main__":
     st.set_page_config(layout="wide", page_icon="📷", page_title="Computer Vision T1")
     st.title("Computer Vision T1")
 
-    row1_1, row1_2 = st.columns((2, 4))
-    # Seção onde é inserido as transformações que devem ser feitas
-    with row1_1:
-        row1_1.subheader("Transformando a câmera")
-        form1 = row1_1.form("Transformando")
-        transform_type = form1.selectbox("Tipo de transformação", ["Rotação", "Translação"])
-        if transform_type == "Translação":
-            # Parâmetros Translação
-            axis = form1.radio("Eixo", ["x", "y", "z"])
-            c = form1.number_input("Valor", step=1)
-        else:
-            # Parâmetros Rotação
-            axis = form1.radio("Eixo", ["x", "y", "z"])
-            theta = form1.number_input("Valor", step=1, format="%d")
-        ref = form1.checkbox("Eixo da câmera")
-        print(f"This is ref {ref}")
-        submit2 = form1.form_submit_button("Transformar câmera")
-        if submit2:
-            if transform_type == "Rotação":
-                trans = Rotation(math.radians(theta), axis, cam_ref=ref)
+    # Cria os tabs
+    world_view_tab, cam_view_tab = st.tabs(["Visão do mundo", "Visão da câmera"])
+
+    with world_view_tab:
+        row1_1, row1_2 = st.columns((2, 4))
+        # Seção onde é inserido as transformações que devem ser feitas
+        with row1_1:
+            row1_1.subheader("Transformando a câmera")
+            form1 = row1_1.form("Transformando")
+            transform_type = form1.selectbox("Tipo de transformação", ["Rotação", "Translação"])
+            if transform_type == "Translação":
+                # Parâmetros Translação
+                axis = form1.radio("Eixo", ["x", "y", "z"])
+                c = form1.number_input("Valor", step=1)
             else:
-                trans = Translation(c, axis, cam_ref=ref)
-            # Aplica a transformação na câmera
-            cam.transform(trans)
+                # Parâmetros Rotação
+                axis = form1.radio("Eixo", ["x", "y", "z"])
+                theta = form1.number_input("Ângulo(º)", step=1, format="%d")
+            ref = form1.checkbox("Eixo da câmera")
+            submit2 = form1.form_submit_button("Transformar câmera")
+            if submit2:
+                if transform_type == "Rotação":
+                    trans = Rotation(math.radians(theta), axis, cam_ref=ref)
+                else:
+                    trans = Translation(c, axis, cam_ref=ref)
+                # Aplica a transformação na câmera
+                cam.transform(trans)
 
-        # Reseta a câmera
-        if st.button("Resetar câmera", type="primary"):
-            del st.session_state["cam"]
-            st.experimental_rerun()
+            # Reseta a câmera
+            if st.button("Resetar câmera", type="primary"):
+                del st.session_state["cam"]
+                st.experimental_rerun()
 
-    # Onde ocorre a inserção dos parâmetros intrísecos da câmera 
-    with row1_2:
-        st.header("Out side vision")
-        fig = plot_cam(cam.cam, cb)
-        fig.set_dpi(300)
-        st.write(fig)
+        # Onde ocorre a inserção dos parâmetros intrísecos da câmera
+        with row1_2:
+            fig = plot_cam(cam.cam, cb)
+            fig.set_dpi(300)
+            st.write(fig)
 
     row2_1, row2_2 = st.columns((1, 4))
     # Parte que mostra o gráfico da visão do mundo da cena
@@ -310,23 +312,24 @@ if __name__ == "__main__":
         # alphay = form2.number_input("Vertical field of view", step=1)
         submit3 = form2.form_submit_button("Renderizar foto")
 
-    # Seção que mostra o gráfico da visão da câmera da cena
-    with row2_2:
-        st.header("Cam vision")
+        # Seção que mostra o gráfico da visão da câmera da cena
+        with row2_2:
 
         image = image_projection(cam, cb, f, sx, sy, ox, oy)
 
-        # O gráfico da visão projetada da câmera tem que vir aqui
-        projection_fig, projection_ax = set_picture()
-        projection_ax.scatter(image[0,:],image[1,:], color ='c', s = 0.5)
+            # O gráfico da visão projetada da câmera tem que vir aqui
+            projection_fig, projection_ax = set_picture()
+            projection_ax.scatter(image[0,:],image[1,:], color ='c', s = 0.5)
         # projection_ax.plot(image[0, :], image[1, :])
         projection_ax.grid()
-        # projection_fig.set_dpi(300)
-        st.write(projection_fig)
+            # projection_fig.set_dpi(300)
+            st.write(projection_fig)
 
-    st.session_state["cam"] = cam.to_dict()
+        # Salva as informações da câmera
+        st.session_state["cam"] = cam.to_dict()
 
-    with st.sidebar:
-        st.subheader("Transformações aplicadas")
-        for i, trf in enumerate(cam.all_transforms, 1):
-            st.code(f"{i}. " + str(trf))
+        # Mostra as transformações aplicas à câmera
+        with st.sidebar:
+            st.subheader("Transformações aplicadas")
+            for i, trf in enumerate(cam.all_transforms, 1):
+                st.code(f"{i}. " + str(trf))
